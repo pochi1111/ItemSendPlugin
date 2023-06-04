@@ -1,0 +1,7 @@
+name: ItemSendPlugin
+version: '1.0-SNAPSHOT'
+main: san.kuroinu.itemsendplugin.ItemSendPlugin
+api-version: 1.19
+commands:
+    itemsend:
+    itemreceive:

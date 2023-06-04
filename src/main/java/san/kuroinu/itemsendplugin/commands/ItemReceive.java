@@ -15,10 +15,16 @@ import java.sql.*;
 import java.util.Arrays;
 
 import static san.kuroinu.itemsendplugin.ItemSendPlugin.plugin;
+import static san.kuroinu.itemsendplugin.ItemSendPlugin.prefix;
 
 public class ItemReceive implements CommandExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] strings) {
+        //プレイヤーのみ
+        if (!(commandSender instanceof Player)) {
+            commandSender.sendMessage(prefix+"プレイヤーのみ実行可能です");
+            return true;
+        }
         //受け取り
         try {
             Connection con = DriverManager.getConnection(

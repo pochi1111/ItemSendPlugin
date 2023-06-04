@@ -15,8 +15,13 @@ import static san.kuroinu.itemsendplugin.ItemSendPlugin.*;
 public class ItemSend implements CommandExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] args) {
+        //プレイヤーのみ
+        if (!(commandSender instanceof Player)) {
+            commandSender.sendMessage(prefix+"プレイヤーのみ実行可能です");
+            return true;
+        }
         if (args.length == 0){
-            commandSender.sendMessage("使い方: /itemsend [player]");
+            commandSender.sendMessage(prefix+"使い方: /itemsend [player]");
             return true;
         }else{
             //args[0]のプレイやーがログインしたことがあるかを判定

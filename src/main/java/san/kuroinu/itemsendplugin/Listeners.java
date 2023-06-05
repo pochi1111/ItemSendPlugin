@@ -162,6 +162,7 @@ public class Listeners implements Listener {
         if (players.get(e.getName()) != null){
             new Thread( () -> {
                 try {
+                    //干渉しないように0.5秒待機
                     Thread.sleep(500);
                     if (players.get(e.getName()) == null) return;
                     for (int i = 0; i < event.getInventory().getSize()-1; i++) {

@@ -16,6 +16,22 @@ public class ItemSend implements CommandExecutor {
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String[] args) {
         //プレイヤーのみ
+        if (args.length == 1 && args[0].equals("reload")) {
+            if (!(commandSender instanceof Player)) {
+                plugin.reloadConfig();
+                commandSender.sendMessage(prefix+"configをリロードしました");
+                return true;
+            }
+            Player p = (Player) commandSender;
+            if(p.isOp()){
+                plugin.reloadConfig();
+                commandSender.sendMessage(prefix+"configをリロードしました");
+                return true;
+            }else{
+                commandSender.sendMessage(prefix+"権限がありません");
+                return true;
+            }
+        }
         if (!(commandSender instanceof Player)) {
             commandSender.sendMessage(prefix+"プレイヤーのみ実行可能です");
             return true;

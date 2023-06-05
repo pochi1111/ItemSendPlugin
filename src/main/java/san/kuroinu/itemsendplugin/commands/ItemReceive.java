@@ -84,15 +84,11 @@ public class ItemReceive implements CommandExecutor {
     protected ItemStack createGuiItem(final Material material, final String name, final String... lore) {
         final ItemStack item = new ItemStack(material, 1);
         final ItemMeta meta = item.getItemMeta();
-
         // Set the name of the item
         meta.setDisplayName(name);
-
         // Set the lore of the item
         meta.setLore(Arrays.asList(lore));
-
         item.setItemMeta(meta);
-
         return item;
     }
 }

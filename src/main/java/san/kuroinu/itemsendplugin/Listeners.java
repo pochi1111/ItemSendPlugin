@@ -48,39 +48,44 @@ public class Listeners implements Listener {
                 e.sendMessage("100円支払いました");
                 //eにアイテムを輸送する
                 //インベントリ内のアイテムを文字列化
-                Connection con = DriverManager.getConnection(
-                        plugin.getConfig().getString("mysql.url"),
-                        plugin.getConfig().getString("mysql.user"),
-                        plugin.getConfig().getString("mysql.password")
-                );
-                PreparedStatement pstmt;
-                pstmt = con.prepareStatement("INSERT INTO items(sender_name,sendto_name,item1,item2,item3,item4,item5,item6,item7,item8,givedcheck) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)");
-                pstmt.setString(1, e.getName());
-                pstmt.setString(2, players.get(e.getName()));
-                for (int i = 0; i < 8; i++) {
-                    if (event.getInventory().getItem(i) == null){
-                        pstmt.setString(i+3, "null");
-                        continue;
+                //スレッドを作成
+                new Thread(() -> {
+                    try {
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            e.sendMessage(prefix+ ChatColor.GREEN +"配送しました");
+                            e.closeInventory();
+                            OfflinePlayer aite = Bukkit.getOfflinePlayer(players.get(e.getName()));
+                            if (aite.isOnline()){
+                                aite.getPlayer().sendMessage(prefix+ ChatColor.GREEN +e.getName()+"からアイテムが届きました");
+                                aite.getPlayer().sendMessage(prefix+ ChatColor.GREEN +"/itemreceiveで受け取ってください");
+                            }
+                            players.remove(e.getName());
+                        });
+                        //データベースにアイテムを送る
+                        Connection con = DriverManager.getConnection(
+                                plugin.getConfig().getString("mysql.url"),
+                                plugin.getConfig().getString("mysql.user"),
+                                plugin.getConfig().getString("mysql.password")
+                        );
+                        PreparedStatement pstmt;
+                        pstmt = con.prepareStatement("INSERT INTO items(sender_name,sendto_name,item1,item2,item3,item4,item5,item6,item7,item8,givedcheck) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)");
+                        pstmt.setString(1, e.getName());
+                        pstmt.setString(2, players.get(e.getName()));
+                        for (int i = 0; i < 8; i++) {
+                            if (event.getInventory().getItem(i) == null){
+                                pstmt.setString(i+3, "null");
+                                continue;
+                            }
+                            pstmt.setString(i+3, encodeItem(event.getInventory().getItem(i)));
+                        }
+                        pstmt.setString(11, "false");
+                        pstmt.executeUpdate();
+                        pstmt.close();
+                        con.close();
+                    } catch (SQLException throwables) {
+                        throwables.printStackTrace();
                     }
-                    pstmt.setString(i+3, encodeItem(event.getInventory().getItem(i)));
-                }
-                pstmt.setString(11, "false");
-                pstmt.executeUpdate();
-                pstmt.close();
-                con.close();
-                //インベントリを閉じる
-                e.closeInventory();
-                //相手がオンラインなら通知を行う
-                OfflinePlayer sendtooff = Bukkit.getOfflinePlayer(players.get(e.getName()));
-                if (sendtooff.isOnline()){
-                    Player sendto = plugin.getServer().getPlayer(players.get(e.getName()));
-                    sendto.sendMessage(prefix+ ChatColor.GREEN +e.getName()+"からアイテムが届きました");
-                    sendto.sendMessage(prefix+ ChatColor.GREEN +"アイテムを受け取るには"+ChatColor.RED+"/itemreceive"+ChatColor.GREEN+"を実行してください");
-                }
-                //playersからeを削除
-                players.remove(e.getName());
-                //eにメッセージを送信
-                e.sendMessage(prefix+ ChatColor.GREEN +"アイテムを配送しました");
+                }).start();
             }
         }
     }
@@ -89,8 +94,10 @@ public class Listeners implements Listener {
     @EventHandler
     public void onRightClick(PlayerInteractEvent event) throws SQLException {
         if (event.getAction().isRightClick()){
+            if (event.getItem() == null) return;
             if (event.getItem().getItemMeta().getDisplayName().equals("§aお届けBox")){
                 NamespacedKey key = new NamespacedKey(plugin, "item_id");
+                ItemStack item = event.getItem();
                 if (event.getItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER) == null) return;
                 int ID = event.getItem().getItemMeta().getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
                 //IDがない場合return
@@ -107,35 +114,43 @@ public class Listeners implements Listener {
                     event.getPlayer().sendMessage(prefix+ ChatColor.DARK_RED +"インベントリに空きがありません");
                     return;
                 }
-                Connection con = DriverManager.getConnection(
-                        plugin.getConfig().getString("mysql.url"),
-                        plugin.getConfig().getString("mysql.user"),
-                        plugin.getConfig().getString("mysql.password")
-                );
-                PreparedStatement pstmt = con.prepareStatement("SELECT * FROM items WHERE id = ?");
-                pstmt.setInt(1, ID);
-                ResultSet rs = pstmt.executeQuery();
-                if (rs.next()) {
-                    //アイテムをインベントリに入れる
-                    for (int i = 0; i < 8; i++) {
-                        if (rs.getString(i + 4).equals("null")) {
-                            continue;
+                //スレッドを作成
+                new Thread(() -> {
+                    try {
+                        //データベースに接続
+                        Connection con = DriverManager.getConnection(
+                                plugin.getConfig().getString("mysql.url"),
+                                plugin.getConfig().getString("mysql.user"),
+                                plugin.getConfig().getString("mysql.password")
+                        );
+                        PreparedStatement pstmt = con.prepareStatement("SELECT * FROM items WHERE id = ?");
+                        pstmt.setInt(1, ID);
+                        ResultSet rs = pstmt.executeQuery();
+                        if (rs.next()) {
+                            //アイテムをインベントリに入れる
+                            for (int i = 0; i < 8; i++) {
+                                if (rs.getString(i + 4).equals("null")) {
+                                    continue;
+                                }
+                                event.getPlayer().getInventory().addItem(decodeItem(rs.getString(i + 4)));
+                            }
+                            //アイテムを削除する
+                            PreparedStatement pstmt2 = con.prepareStatement("DELETE FROM items WHERE id = ?");
+                            pstmt2.setInt(1, ID);
+                            pstmt2.executeUpdate();
+                            pstmt2.close();
+                            con.close();
+                            //eにメッセージを送信
+                            e.sendMessage(prefix+ ChatColor.GREEN +"アイテムを受け取りました");
+                            //eのインベントリからitemを削除
+                            e.getInventory().remove(item);
+                        }else{
+                            e.sendMessage(prefix+ ChatColor.DARK_RED +"お届け物が見つかりませんでした");
                         }
-                        event.getPlayer().getInventory().addItem(decodeItem(rs.getString(i + 4)));
+                    } catch (SQLException throwables) {
+                        throwables.printStackTrace();
                     }
-                    //アイテムを削除する
-                    PreparedStatement pstmt2 = con.prepareStatement("DELETE FROM items WHERE id = ?");
-                    pstmt2.setInt(1, ID);
-                    pstmt2.executeUpdate();
-                    pstmt2.close();
-                    rs.close();
-                    pstmt.close();
-                    con.close();
-                    e.sendMessage(prefix + ChatColor.GREEN + "アイテムを受け取りました");
-                    e.getInventory().remove(event.getItem());
-                }else{
-                    e.sendMessage(prefix+ ChatColor.DARK_RED +"アイテムが見つかりませんでした");
-                }
+                }).start();
             }
         }
     }

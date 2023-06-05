@@ -26,6 +26,7 @@ public class ItemReceive implements CommandExecutor {
             return true;
         }
         //受け取り
+        new Thread(() -> {
         try {
             Connection con = DriverManager.getConnection(
                     plugin.getConfig().getString("mysql.url"),
@@ -45,7 +46,7 @@ public class ItemReceive implements CommandExecutor {
                 Player e = (Player) commandSender;
                 if (e.getInventory().firstEmpty() == -1) {
                     commandSender.sendMessage("インベントリがいっぱいです");
-                    return true;
+                    return;
                 }
                 //アイテムを受け取る
                 String[] lore;
@@ -67,7 +68,6 @@ public class ItemReceive implements CommandExecutor {
             }
             if (i == 0) {
                 commandSender.sendMessage("お届けBoxにアイテムはありません");
-                return true;
             }else{
                 commandSender.sendMessage(i+"個のアイテムを受け取りました");
             }
@@ -79,6 +79,7 @@ public class ItemReceive implements CommandExecutor {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }).start();
         return true;
     }
     protected ItemStack createGuiItem(final Material material, final String name, final String... lore) {
